@@ -1,28 +1,21 @@
--- ═══════════════════════════════════════════════════════════
--- Medical Talent PRN — Supabase Database Setup
--- Run this entire script in: Supabase Dashboard → SQL Editor
--- ═══════════════════════════════════════════════════════════
-
 -- EXPENSES
 create table public.expenses (
-  id          uuid default gen_random_uuid() primary key,
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  date        date not null,
-  description text not null,
-  amount      numeric(12,2) not null,
-  category    text default '',
+  id           uuid default gen_random_uuid() primary key,
+  date         date not null,
+  description  text not null,
+  amount       numeric(12,2) not null,
+  category     text default '',
   is_recurring boolean default false,
-  recur_key   text default '',
-  recur_id    text default '',
-  created_at  timestamptz default now()
+  recur_key    text default '',
+  recur_id     text default '',
+  created_at   timestamptz default now()
 );
 alter table public.expenses enable row level security;
-create policy "Own expenses" on public.expenses for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "open" on public.expenses for all using (true) with check (true);
 
 -- INCOME
 create table public.income (
   id          uuid default gen_random_uuid() primary key,
-  user_id     uuid references auth.users(id) on delete cascade not null,
   date        date not null,
   description text not null,
   amount      numeric(12,2) not null,
@@ -30,12 +23,11 @@ create table public.income (
   created_at  timestamptz default now()
 );
 alter table public.income enable row level security;
-create policy "Own income" on public.income for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "open" on public.income for all using (true) with check (true);
 
 -- RECURRING
 create table public.recurring (
   id          uuid default gen_random_uuid() primary key,
-  user_id     uuid references auth.users(id) on delete cascade not null,
   description text not null,
   amount      numeric(12,2) not null,
   category    text default '',
@@ -44,16 +36,14 @@ create table public.recurring (
   created_at  timestamptz default now()
 );
 alter table public.recurring enable row level security;
-create policy "Own recurring" on public.recurring for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "open" on public.recurring for all using (true) with check (true);
 
 -- CATEGORIES
 create table public.categories (
   id         uuid default gen_random_uuid() primary key,
-  user_id    uuid references auth.users(id) on delete cascade not null,
-  name       text not null,
+  name       text not null unique,
   sort_order integer default 0,
-  created_at timestamptz default now(),
-  unique(user_id, name)
+  created_at timestamptz default now()
 );
 alter table public.categories enable row level security;
-create policy "Own categories" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "open" on public.categories for all using (true) with check (true);
