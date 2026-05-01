@@ -1,3 +1,8 @@
+-- ═══════════════════════════════════════════════════════════
+-- Medical Talent PRN — Supabase Database Setup
+-- Run this entire script in: Supabase Dashboard → SQL Editor
+-- ═══════════════════════════════════════════════════════════
+
 -- EXPENSES
 create table public.expenses (
   id           uuid default gen_random_uuid() primary key,

@@ -140,8 +140,7 @@ tbody tr:hover { background:#f8fafc; }
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
-      <div class="user-badge" id="user-badge"></div>
-      <button class="btn-logout" onclick="logout()">Sign Out</button>
+      <button class="btn-logout" onclick="lock()">&#128274; Lock</button>
     </div>
   </div>
 
@@ -294,7 +293,7 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let expenses=[], income=[], recurring=[], categories=[];
-let currentUser=null, currentTab='weekly', plPeriod='month', chart=null;
+let currentTab='weekly', plPeriod='month', chart=null;
 
 const PALETTE=[
   {bg:'#dbeafe',text:'#1e3a8a'},{bg:'#fef3c7',text:'#92400e'},{bg:'#d1fae5',text:'#065f46'},
@@ -313,24 +312,26 @@ function normInc(i){return{id:i.id,date:i.date,desc:i.description,amount:parseFl
 function normRec(r){return{id:r.id,desc:r.description,amount:parseFloat(r.amount),category:r.category||'',frequency:r.frequency,startDate:r.start_date};}
 
 async function init(){
-  const {data:{session}}=await db.auth.getSession();
-  if(!session){window.location.href='index.html';return;}
-  currentUser=session.user;
-  document.getElementById('user-badge').textContent=currentUser.email;
+  // Password gate check
+  if(localStorage.getItem('mt_unlocked')!=='true'){
+    window.location.href='index.html';return;
+  }
   await loadAll();
   document.getElementById('spinner-wrap').style.display='none';
   document.getElementById('app').style.display='block';
 }
 
-async function logout(){await db.auth.signOut();window.location.href='index.html';}
+function lock(){
+  localStorage.removeItem('mt_unlocked');
+  window.location.href='index.html';
+}
 
 async function loadAll(){
-  const uid=currentUser.id;
   const [eR,iR,rR,cR]=await Promise.all([
-    db.from('expenses').select('*').eq('user_id',uid).order('date',{ascending:false}),
-    db.from('income').select('*').eq('user_id',uid).order('date',{ascending:false}),
-    db.from('recurring').select('*').eq('user_id',uid).order('created_at',{ascending:true}),
-    db.from('categories').select('*').eq('user_id',uid).order('sort_order',{ascending:true})
+    db.from('expenses').select('*').order('date',{ascending:false}),
+    db.from('income').select('*').order('date',{ascending:false}),
+    db.from('recurring').select('*').order('created_at',{ascending:true}),
+    db.from('categories').select('*').order('sort_order',{ascending:true})
   ]);
   expenses=(eR.data||[]).map(normExp);
   income=(iR.data||[]).map(normInc);
@@ -343,7 +344,7 @@ async function loadAll(){
 async function ensureCategory(name){
   const t=name.trim();if(!t)return'';
   if(!categories.includes(t)){
-    await db.from('categories').insert({user_id:currentUser.id,name:t,sort_order:categories.length});
+    await db.from('categories').insert({name:t,sort_order:categories.length});
     categories.push(t);refreshDatalist();renderCategories();
   }
   return t;
@@ -351,7 +352,7 @@ async function ensureCategory(name){
 async function deleteCategory(name){
   const inUse=expenses.some(e=>e.category===name)||recurring.some(r=>r.category===name);
   if(inUse&&!confirm('"'+name+'" is in use. Remove from list anyway?'))return;
-  await db.from('categories').delete().eq('user_id',currentUser.id).eq('name',name);
+  await db.from('categories').delete().eq('name',name);
   categories=categories.filter(c=>c!==name);
   refreshDatalist();renderCategories();
 }
@@ -388,7 +389,7 @@ async function applyRecurring(){
     getDueDates(r,today).forEach(date=>{
       const key=`rec_${r.id}_${date}`;
       if(!expenses.some(e=>e.recurKey===key))
-        toIns.push({user_id:currentUser.id,date,description:r.desc,amount:r.amount,category:r.category,is_recurring:true,recur_key:key,recur_id:r.id});
+        toIns.push({date,description:r.desc,amount:r.amount,category:r.category,is_recurring:true,recur_key:key,recur_id:r.id});
     });
   });
   if(toIns.length){const{data}=await db.from('expenses').insert(toIns).select();if(data)expenses.unshift(...data.map(normExp));}
@@ -402,7 +403,7 @@ async function addRecurring(){
   const startDate=document.getElementById('r-start').value;
   if(!desc||!amount||amount<=0||!startDate){alert('Please fill in description, amount, and start date.');return;}
   const category=await ensureCategory(catRaw);
-  const{data,error}=await db.from('recurring').insert({user_id:currentUser.id,description:desc,amount,category,frequency,start_date:startDate}).select().single();
+  const{data,error}=await db.from('recurring').insert({description:desc,amount,category,frequency,start_date:startDate}).select().single();
   if(error){alert('Error: '+error.message);return;}
   recurring.push(normRec(data));
   document.getElementById('r-desc').value='';document.getElementById('r-amount').value='';document.getElementById('r-category').value='';
@@ -422,7 +423,7 @@ async function addExpense(){
   if(!date||!desc||!amount||amount<=0){alert('Please fill in date, description, and a valid amount.');return;}
   if(!catRaw.trim()){alert('Please enter a category.');return;}
   const category=await ensureCategory(catRaw);
-  const{data,error}=await db.from('expenses').insert({user_id:currentUser.id,date,description:desc,amount,category}).select().single();
+  const{data,error}=await db.from('expenses').insert({date,description:desc,amount,category}).select().single();
   if(error){alert('Error: '+error.message);return;}
   expenses.unshift(normExp(data));
   document.getElementById('input-desc').value='';document.getElementById('input-amount').value='';
@@ -432,7 +433,7 @@ async function addExpense(){
 async function deleteExpense(id){await db.from('expenses').delete().eq('id',id);expenses=expenses.filter(e=>e.id!==id);render();}
 async function confirmClearAll(){
   if(!expenses.length)return;
-  if(confirm(`Delete all ${expenses.length} expenses?`)){await db.from('expenses').delete().eq('user_id',currentUser.id);expenses=[];render();}
+  if(confirm(`Delete all ${expenses.length} expenses?`)){await db.from('expenses').delete().neq('id','00000000-0000-0000-0000-000000000000');expenses=[];render();}
 }
 
 async function addIncome(){
@@ -441,7 +442,7 @@ async function addIncome(){
   const amount=parseFloat(document.getElementById('inc-amount').value);
   const source=document.getElementById('inc-source').value.trim();
   if(!date||!desc||!amount||amount<=0){alert('Please fill in date, description, and a valid amount.');return;}
-  const{data,error}=await db.from('income').insert({user_id:currentUser.id,date,description:desc,amount,source}).select().single();
+  const{data,error}=await db.from('income').insert({date,description:desc,amount,source}).select().single();
   if(error){alert('Error: '+error.message);return;}
   income.unshift(normInc(data));
   document.getElementById('inc-desc').value='';document.getElementById('inc-amount').value='';document.getElementById('inc-source').value='';
