@@ -1,2 +1,6 @@
-const SUPABASE_URL = 'https://uswslghzifvhorrutdjz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzd3NsZ2h6aWZ2aG9ycnV0ZGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2MzY4NTQsImV4cCI6MjA5MzIxMjg1NH0.tUf_AY1TozEwBRo6FJWQ3fJSPN1TJ2CEJzAsuKnRuaw';
+// ─────────────────────────────────────────────
+// Paste your Supabase credentials here
+// Found in: Supabase Dashboard → Project Settings → API
+// ─────────────────────────────────────────────
+const SUPABASE_URL      = 'PASTE_YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
